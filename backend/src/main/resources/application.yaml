@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/mieszkania?useSSL=false&serverTimezone=Europe/Warsaw&allowPublicKeyRetrieval=true
+    username: mieszkania_user
+    password: haslo123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+app:
+  jwt:
+    secret: b3BlbnNlc3NhbWUtc2VjcmV0LWtleS1sb25nZW5vdWdo
+    expiration-ms: 86400000
+
+  nbp:
+    rates-url: https://static.nbp.pl/dane/stopy/stopy_procentowe_archiwum.xml
+    prices-url: https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx
+    years-back: 10
+
+server:
+  port: 8080
