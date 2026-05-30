@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://projekt.example.com/rates"
+           xmlns:tns="http://projekt.example.com/rates"
+           elementFormDefault="qualified">
+
+    <!-- Request: pobierz stopy po id (ref/lom/dep/red/dys) lub wszystkie -->
+    <xs:element name="GetInterestRatesRequest">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="rateId" type="xs:string" minOccurs="0"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- Response: lista stóp -->
+    <xs:element name="GetInterestRatesResponse">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="rates" type="tns:InterestRateEntry" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+
+    <xs:complexType name="InterestRateEntry">
+        <xs:sequence>
+            <xs:element name="id"        type="xs:long"/>
+            <xs:element name="rateId"    type="xs:string"/>
+            <xs:element name="rateName"  type="xs:string"/>
+            <xs:element name="value"     type="xs:decimal"/>
+            <xs:element name="validFrom" type="xs:string"/>
+            <xs:element name="validTo"   type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+</xs:schema>
