@@ -13,6 +13,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+
 app:
   jwt:
     secret: b3BlbnNlc3NhbWUtc2VjcmV0LWtleS1sb25nZW5vdWdo
