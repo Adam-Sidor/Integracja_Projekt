@@ -157,53 +157,6 @@ public class ExportImportController {
         return ResponseEntity.ok(Map.of("imported", saved));
     }
 
-    // ── EKSPORT YAML (konfiguracja) ──────────────────────────────────────────
-
-    @GetMapping("/yaml/config")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> exportConfigYaml() {
-        String yaml = """
-                app:
-                  nbp:
-                    ratesUrl: https://static.nbp.pl/dane/stopy/stopy_procentowe_archiwum.xml
-                    pricesUrl: https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx
-                    yearsBack: 10
-                  jwt:
-                    expirationMs: 86400000
-                """;
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=config.yaml")
-                .contentType(MediaType.parseMediaType("application/x-yaml"))
-                .body(yaml.getBytes());
-    }
-
-    // ── IMPORT YAML (konfiguracja) ───────────────────────────────────────────
-
-    @PostMapping("/yaml/config/import")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> importConfigYaml(@RequestParam("file") MultipartFile file) throws Exception {
-        Map<String, String> config = new LinkedHashMap<>();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(file.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isBlank() || line.startsWith("#")) continue;
-                if (line.contains(":")) {
-                    String[] parts = line.split(":", 2);
-                    String key = parts[0].trim();
-                    String val = parts[1].trim();
-                    if (!val.isBlank()) config.put(key, val);
-                }
-            }
-        }
-        return ResponseEntity.ok(Map.of(
-                "message", "Konfiguracja wczytana",
-                "entries", config.size(),
-                "config",  config
-        ));
-    }
-
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void addChild(Document doc, Element parent, String tag, String value) {
