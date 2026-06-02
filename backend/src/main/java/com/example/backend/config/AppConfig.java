@@ -1,17 +1,19 @@
 package com.example.backend.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * Konfigurowalna część ustawień aplikacji — można nadpisać przez import YAML.
- * Przechowuje aktualnie aktywne ustawienia w pamięci.
- */
 @Component
 public class AppConfig {
 
-    private int yearsBack = 10;
-    private String ratesUrl = "https://static.nbp.pl/dane/stopy/stopy_procentowe_archiwum.xml";
-    private String pricesUrl = "https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx";
+    @Value("${app.nbp.years-back:10}")
+    private int yearsBack;
+
+    @Value("${app.nbp.rates-url}")
+    private String ratesUrl;
+
+    @Value("${app.nbp.prices-url}")
+    private String pricesUrl;
 
     public int getYearsBack() { return yearsBack; }
     public void setYearsBack(int yearsBack) { this.yearsBack = yearsBack; }

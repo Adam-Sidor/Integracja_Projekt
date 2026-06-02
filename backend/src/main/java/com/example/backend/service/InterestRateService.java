@@ -1,6 +1,6 @@
 package com.example.backend.service;
 
-import com.example.backend.config.NbpProperties;
+import com.example.backend.config.AppConfig;
 import com.example.backend.model.InterestRate;
 import com.example.backend.repository.InterestRateRepository;
 import org.slf4j.Logger;
@@ -31,45 +31,40 @@ public class InterestRateService {
     );
 
     private final InterestRateRepository repo;
-    private final NbpProperties props;
+    private final AppConfig appConfig;
 
-    public InterestRateService(InterestRateRepository repo, NbpProperties props) {
+    public InterestRateService(InterestRateRepository repo, AppConfig appConfig) {
         this.repo = repo;
-        this.props = props;
+        this.appConfig = appConfig;
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public int fetchAndStore() {
         log.info("Pobieranie stóp procentowych z NBP...");
         int saved = 0;
-        LocalDate cutoff = LocalDate.now().minusYears(props.getYearsBack());
+        LocalDate cutoff = LocalDate.now().minusYears(appConfig.getYearsBack());
 
-        try (InputStream in = URI.create(props.getRatesUrl()).toURL().openStream()) {
+        try (InputStream in = URI.create(appConfig.getRatesUrl()).toURL().openStream()) {
             Document doc = DocumentBuilderFactory.newInstance()
                     .newDocumentBuilder().parse(in);
 
             NodeList groups = doc.getElementsByTagName("pozycje");
             int total = groups.getLength();
 
-            // Znajdź ostatnią grupę PRZED cutoffem — ona obowiązywała na początku okresu
             int startIdx = 0;
             for (int i = 0; i < total; i++) {
                 Element g = (Element) groups.item(i);
                 LocalDate d = LocalDate.parse(g.getAttribute("obowiazuje_od"));
-                if (d.isBefore(cutoff)) {
-                    startIdx = i; // aktualizuj — chcemy ostatni przed cutoffem
-                } else {
-                    break;
-                }
+                if (d.isBefore(cutoff)) startIdx = i;
+                else break;
             }
 
-            log.info("Cutoff: {}, startIdx: {} (ostatnia stopa przed cutoffem)", cutoff, startIdx);
+            log.info("Cutoff: {}, startIdx: {}", cutoff, startIdx);
 
             for (int i = startIdx; i < total; i++) {
                 Element group = (Element) groups.item(i);
                 LocalDate validFrom = LocalDate.parse(group.getAttribute("obowiazuje_od"));
 
-                // valid_to = dzień przed następną zmianą
                 LocalDate validTo = null;
                 if (i + 1 < total) {
                     Element next = (Element) groups.item(i + 1);
@@ -80,13 +75,11 @@ public class InterestRateService {
                 for (int j = 0; j < positions.getLength(); j++) {
                     Element pos = (Element) positions.item(j);
                     String rateId = pos.getAttribute("id");
-
                     if (!RATE_NAMES.containsKey(rateId)) continue;
                     if (repo.existsByRateIdAndValidFrom(rateId, validFrom)) continue;
 
                     BigDecimal value = new BigDecimal(
-                            pos.getAttribute("oprocentowanie").replace(",", ".")
-                    );
+                            pos.getAttribute("oprocentowanie").replace(",", "."));
 
                     InterestRate rate = new InterestRate();
                     rate.setRateId(rateId);
@@ -94,7 +87,6 @@ public class InterestRateService {
                     rate.setValue(value);
                     rate.setValidFrom(validFrom);
                     rate.setValidTo(validTo);
-
                     repo.save(rate);
                     saved++;
                 }
@@ -109,12 +101,9 @@ public class InterestRateService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED, readOnly = true)
     public List<InterestRate> getAll() {
-        // Zwracamy od pierwszego wpisu w bazie (może być sprzed cutoffu — to poprawne)
-        return repo.findByRateIdOrderByValidFromAsc("ref").isEmpty()
-                ? repo.findAll()
-                : repo.findFromDate(
-                repo.findByRateIdOrderByValidFromAsc("ref").get(0).getValidFrom()
-        );
+        List<InterestRate> ref = repo.findByRateIdOrderByValidFromAsc("ref");
+        if (ref.isEmpty()) return repo.findAll();
+        return repo.findFromDate(ref.get(0).getValidFrom());
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED, readOnly = true)

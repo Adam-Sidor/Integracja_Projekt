@@ -48,7 +48,6 @@ public class ExportImportController {
                 .newDocumentBuilder().newDocument();
         Element root = doc.createElement("interestRates");
         doc.appendChild(root);
-
         for (InterestRate r : rates) {
             Element el = doc.createElement("rate");
             addChild(doc, el, "id",        String.valueOf(r.getId()));
@@ -59,7 +58,6 @@ public class ExportImportController {
             addChild(doc, el, "validTo",   r.getValidTo() != null ? r.getValidTo().toString() : "");
             root.appendChild(el);
         }
-
         return xmlResponse(toBytes(doc), "interest_rates.xml");
     }
 
@@ -70,7 +68,6 @@ public class ExportImportController {
                 .newDocumentBuilder().newDocument();
         Element root = doc.createElement("apartmentPrices");
         doc.appendChild(root);
-
         for (ApartmentPrice p : prices) {
             Element el = doc.createElement("price");
             addChild(doc, el, "id",          String.valueOf(p.getId()));
@@ -83,7 +80,6 @@ public class ExportImportController {
             addChild(doc, el, "quarter",     String.valueOf(p.getQuarter()));
             root.appendChild(el);
         }
-
         return xmlResponse(toBytes(doc), "apartment_prices.xml");
     }
 
@@ -96,14 +92,11 @@ public class ExportImportController {
                 .newDocumentBuilder().parse(file.getInputStream());
         NodeList nodes = doc.getElementsByTagName("rate");
         int saved = 0;
-
         for (int i = 0; i < nodes.getLength(); i++) {
             Element el = (Element) nodes.item(i);
-            String rateId    = getChild(el, "rateId");
-            LocalDate from   = LocalDate.parse(getChild(el, "validFrom"));
-
+            String rateId = getChild(el, "rateId");
+            LocalDate from = LocalDate.parse(getChild(el, "validFrom"));
             if (rateRepo.existsByRateIdAndValidFrom(rateId, from)) continue;
-
             InterestRate rate = new InterestRate();
             rate.setRateId(rateId);
             rate.setRateName(getChild(el, "rateName"));
@@ -114,7 +107,6 @@ public class ExportImportController {
             rateRepo.save(rate);
             saved++;
         }
-
         return ResponseEntity.ok(Map.of("imported", saved));
     }
 
@@ -125,7 +117,6 @@ public class ExportImportController {
                 .newDocumentBuilder().parse(file.getInputStream());
         NodeList nodes = doc.getElementsByTagName("price");
         int saved = 0;
-
         for (int i = 0; i < nodes.getLength(); i++) {
             Element el = (Element) nodes.item(i);
             String city       = getChild(el, "city");
@@ -133,7 +124,6 @@ public class ExportImportController {
             String priceType  = getChild(el, "priceType");
             int year          = Integer.parseInt(getChild(el, "year"));
             int quarter       = Integer.parseInt(getChild(el, "quarter"));
-
             Optional<Region> region = regionRepo.findByCity(city);
             Optional<PropertyType> pt = propertyTypeRepo.findByMarketTypeAndPriceType(
                     PropertyType.MarketType.valueOf(marketType),
@@ -142,7 +132,6 @@ public class ExportImportController {
             if (region.isEmpty() || pt.isEmpty()) continue;
             if (priceRepo.existsByRegion_IdAndPropertyType_IdAndYearAndQuarter(
                     region.get().getId(), pt.get().getId(), year, quarter)) continue;
-
             ApartmentPrice ap = new ApartmentPrice();
             ap.setRegion(region.get());
             ap.setPropertyType(pt.get());
@@ -153,7 +142,6 @@ public class ExportImportController {
             priceRepo.save(ap);
             saved++;
         }
-
         return ResponseEntity.ok(Map.of("imported", saved));
     }
 

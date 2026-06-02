@@ -1,6 +1,6 @@
 package com.example.backend.service;
 
-import com.example.backend.config.NbpProperties;
+import com.example.backend.config.AppConfig;
 import com.example.backend.model.ApartmentPrice;
 import com.example.backend.model.PropertyType;
 import com.example.backend.model.Region;
@@ -27,10 +27,8 @@ public class ApartmentPriceService {
     private static final Logger log = LoggerFactory.getLogger(ApartmentPriceService.class);
 
     private static final Map<String, Integer> ROMAN = Map.of(
-            "I", 1, "II", 2, "III", 3, "IV", 4
-    );
+            "I", 1, "II", 2, "III", 3, "IV", 4);
 
-    // Nazwy sekcji w pliku → priceType (tylko ofertowa jest w tym pliku)
     private static final Map<String, String> PRICE_TYPE_MAP = new LinkedHashMap<>();
     static {
         PRICE_TYPE_MAP.put("Ceny ofertowe",     "ofertowa");
@@ -50,26 +48,25 @@ public class ApartmentPriceService {
     private final ApartmentPriceRepository priceRepo;
     private final RegionRepository regionRepo;
     private final PropertyTypeRepository propertyTypeRepo;
-    private final NbpProperties props;
+    private final AppConfig appConfig;
 
     public ApartmentPriceService(ApartmentPriceRepository priceRepo,
                                  RegionRepository regionRepo,
                                  PropertyTypeRepository propertyTypeRepo,
-                                 NbpProperties props) {
+                                 AppConfig appConfig) {
         this.priceRepo = priceRepo;
         this.regionRepo = regionRepo;
         this.propertyTypeRepo = propertyTypeRepo;
-        this.props = props;
+        this.appConfig = appConfig;
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public int fetchAndStore() {
         log.info("Pobieranie cen mieszkań z NBP (XLSX)...");
         int saved = 0;
-        // Bierzemy dane od początku okresu 10-letniego
-        int cutoffYear = LocalDate.now().minusYears(props.getYearsBack()).getYear();
+        int cutoffYear = LocalDate.now().minusYears(appConfig.getYearsBack()).getYear();
 
-        try (InputStream in = URI.create(props.getPricesUrl()).toURL().openStream();
+        try (InputStream in = URI.create(appConfig.getPricesUrl()).toURL().openStream();
              Workbook wb = new XSSFWorkbook(in)) {
 
             for (Map.Entry<String, String> sheetEntry : SHEET_MARKET.entrySet()) {
@@ -84,36 +81,29 @@ public class ApartmentPriceService {
 
                 String currentPriceType = null;
                 List<String> cityNames  = new ArrayList<>();
-                int lastRow = sheet.getLastRowNum();
 
-                for (int r = 0; r <= lastRow; r++) {
+                for (int r = 0; r <= sheet.getLastRowNum(); r++) {
                     Row row = sheet.getRow(r);
                     if (row == null) continue;
 
                     String c0 = getCellString(row.getCell(0));
                     String c1 = getCellString(row.getCell(1));
 
-                    // Wykryj sekcję po col1
                     if (PRICE_TYPE_MAP.containsKey(c1)) {
                         currentPriceType = PRICE_TYPE_MAP.get(c1);
                         cityNames.clear();
-                        log.debug("Nowa sekcja: {} (wiersz {})", currentPriceType, r);
                         continue;
                     }
 
-                    // Wiersz nagłówkowy miast
                     if ("Kwartał".equals(c0)) {
                         cityNames.clear();
                         for (int c = 1; c < row.getLastCellNum(); c++) {
-                            String city = getCellString(row.getCell(c))
-                                    .replace("*", "").trim();
-                            cityNames.add(city);
+                            cityNames.add(getCellString(row.getCell(c))
+                                    .replace("*", "").trim());
                         }
-                        log.debug("Znaleziono {} miast w arkuszu {}", cityNames.size(), sheetName);
                         continue;
                     }
 
-                    // Wiersz danych — format "I 2016"
                     if (currentPriceType == null || cityNames.isEmpty()) continue;
                     int[] yq = parseYearQuarter(c0);
                     if (yq == null || yq[0] < cutoffYear) continue;
@@ -124,10 +114,7 @@ public class ApartmentPriceService {
                             PropertyType.MarketType.valueOf(marketType),
                             PropertyType.PriceType.valueOf(currentPriceType)
                     );
-                    if (ptOpt.isEmpty()) {
-                        log.warn("Brak PropertyType: {} / {}", marketType, currentPriceType);
-                        continue;
-                    }
+                    if (ptOpt.isEmpty()) continue;
                     PropertyType propertyType = ptOpt.get();
 
                     for (int c = 0; c < cityNames.size(); c++) {
@@ -135,14 +122,10 @@ public class ApartmentPriceService {
                         if (cityName.isBlank()) continue;
 
                         Optional<Region> regionOpt = regionRepo.findByCity(cityName);
-                        if (regionOpt.isEmpty()) {
-                            log.debug("Nieznane miasto: '{}'", cityName);
-                            continue;
-                        }
+                        if (regionOpt.isEmpty()) continue;
                         Region region = regionOpt.get();
 
-                        Cell cell = row.getCell(c + 1);
-                        BigDecimal price = getCellDecimal(cell);
+                        BigDecimal price = getCellDecimal(row.getCell(c + 1));
                         if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) continue;
 
                         if (priceRepo.existsByRegion_IdAndPropertyType_IdAndYearAndQuarter(
@@ -169,7 +152,7 @@ public class ApartmentPriceService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED, readOnly = true)
     public List<ApartmentPrice> getAll() {
-        int fromYear = LocalDate.now().minusYears(props.getYearsBack()).getYear();
+        int fromYear = LocalDate.now().minusYears(appConfig.getYearsBack()).getYear();
         return priceRepo.findByYearRange(fromYear, LocalDate.now().getYear());
     }
 
@@ -193,9 +176,8 @@ public class ApartmentPriceService {
         try {
             return switch (cell.getCellType()) {
                 case NUMERIC -> BigDecimal.valueOf(cell.getNumericCellValue());
-                case STRING  -> new BigDecimal(
-                        cell.getStringCellValue().replace(",", ".").trim());
-                default -> null;
+                case STRING  -> new BigDecimal(cell.getStringCellValue().replace(",", ".").trim());
+                default      -> null;
             };
         } catch (Exception e) {
             return null;
@@ -209,8 +191,7 @@ public class ApartmentPriceService {
         Integer quarter = ROMAN.get(parts[0]);
         if (quarter == null) return null;
         try {
-            int year = Integer.parseInt(parts[1]);
-            return new int[]{year, quarter};
+            return new int[]{Integer.parseInt(parts[1]), quarter};
         } catch (NumberFormatException e) {
             return null;
         }
