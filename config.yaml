@@ -1,4 +1,0 @@
-app:
-  yearsBack: 5
-  ratesUrl: https://static.nbp.pl/dane/stopy/stopy_procentowe_archiwum.xml
-  pricesUrl: https://static.nbp.pl/dane/rynek-nieruchomosci/ceny_mieszkan.xlsx

@@ -1,0 +1,168 @@
+/* ── Design tokens ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --clr-bg:          #0f1117;
+  --clr-surface:     #181c27;
+  --clr-surface-2:   #1f2437;
+  --clr-border:      rgba(255,255,255,.07);
+  --clr-primary:     #6c63ff;
+  --clr-primary-h:   #857dff;
+  --clr-accent:      #ff6584;
+  --clr-text:        #e8eaf6;
+  --clr-text-muted:  #8b91b0;
+  --radius-sm:       8px;
+  --radius-md:       14px;
+  --radius-lg:       22px;
+  --shadow-card:     0 8px 32px rgba(0,0,0,.45);
+  --transition:      .25s cubic-bezier(.4,0,.2,1);
+  --font:            'Inter', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--clr-bg);
+  color: var(--clr-text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Page wrapper ──────────────────────────────────────────── */
+.page-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-wrapper > main {
+  flex: 1;
+}
+
+/* ── Shared buttons ────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--clr-primary), #8a5cf7);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(108,99,255,.4);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--clr-primary-h), #9d75ff);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(108,99,255,.55);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--clr-text-muted);
+  border: 1px solid var(--clr-border);
+}
+.btn-ghost:hover {
+  color: var(--clr-text);
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.15);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--clr-primary);
+  border: 1.5px solid var(--clr-primary);
+}
+.btn-outline:hover {
+  background: rgba(108,99,255,.12);
+  transform: translateY(-1px);
+}
+.btn-lg { padding: 14px 32px; font-size: 1rem; border-radius: var(--radius-md); }
+
+/* ── Navbar ────────────────────────────────────────────────── */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 48px;
+  background: rgba(15,17,23,.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.brand-icon { font-size: 1.4rem; }
+.brand-name  { font-size: 1.1rem; font-weight: 700; letter-spacing: -.3px; }
+
+.navbar-links {
+  display: flex;
+  list-style: none;
+  gap: 28px;
+  margin-left: auto;
+}
+.navbar-links a {
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  font-size: .9rem;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+.nav-link { color: var(--clr-text-muted); text-decoration: none; font-size: .9rem; font-weight: 500; transition: color var(--transition); }
+.nav-link:hover { color: var(--clr-text); }
+.nav-link--active { color: var(--clr-primary); font-weight: 600; }
+
+/* ── Footer ────────────────────────────────────────────────── */
+.footer {
+  border-top: 1px solid var(--clr-border);
+  padding: 28px 48px;
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.footer-brand { display: flex; align-items: center; gap: 8px; }
+.footer-copy {
+  margin-left: auto;
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+}
+.footer-links {
+  display: flex;
+  list-style: none;
+  gap: 20px;
+}
+.footer-links a {
+  font-size: .8rem;
+  color: var(--clr-text-muted);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.footer-links a:hover { color: var(--clr-text); }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .navbar { padding: 14px 20px; gap: 12px; }
+  .navbar-links { display: none; }
+  .footer { padding: 20px; }
+  .footer-copy { margin-left: 0; }
+}
