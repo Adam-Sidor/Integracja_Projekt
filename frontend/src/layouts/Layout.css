@@ -114,7 +114,6 @@ body {
   display: flex;
   list-style: none;
   gap: 28px;
-  margin-left: auto;
 }
 .navbar-links a {
   color: var(--clr-text-muted);
@@ -126,6 +125,34 @@ body {
 .nav-link { color: var(--clr-text-muted); text-decoration: none; font-size: .9rem; font-weight: 500; transition: color var(--transition); }
 .nav-link:hover { color: var(--clr-text); }
 .nav-link--active { color: var(--clr-primary); font-weight: 600; }
+
+/* ── Navbar actions (auth) ─────────────────────────────────── */
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto; /* pushes to the right */
+}
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--clr-text-muted);
+}
+.nav-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  background: rgba(108,99,255,.18);
+  color: var(--clr-primary-h);
+  border: 1px solid rgba(108,99,255,.3);
+}
 
 /* ── Footer ────────────────────────────────────────────────── */
 .footer {
