@@ -5,6 +5,7 @@ import Layout from './layouts/Layout'
 import StartPage from './pages/StartPage'
 import HomePage from './pages/HomePage'
 import AuthPage from './pages/AuthPage'
+import AdminPage from './pages/AdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 /** Przekierowuje zalogowanych z / na /dashboard */
@@ -17,6 +18,18 @@ function RootRedirect() {
 function AuthRedirect() {
   const { session } = useAuth()
   return session ? <Navigate to="/dashboard" replace /> : <AuthPage />
+}
+
+/** Chroni trasę administratora — dostęp tylko dla roli ADMIN */
+function AdminRoute({ children }) {
+  const { session } = useAuth()
+  if (!session) {
+    return <Navigate to="/auth" replace />
+  }
+  if (session.user.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />
+  }
+  return children
 }
 
 export default function App() {
@@ -39,6 +52,17 @@ export default function App() {
                   <HomePage />
                 </Layout>
               </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <Layout>
+                  <AdminPage />
+                </Layout>
+              </AdminRoute>
             }
           />
         </Routes>

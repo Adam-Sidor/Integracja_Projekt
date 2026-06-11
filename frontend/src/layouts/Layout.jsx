@@ -2,14 +2,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './Layout.css'
 
-const NAV_LINKS = [
-  { to: '/', label: 'Dashboard' },
-]
-
 function Navbar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { session, logout } = useAuth()
+
+  const links = [
+    { to: '/dashboard', label: 'Dashboard' }
+  ]
+
+  if (session?.user?.role === 'ADMIN') {
+    links.push({ to: '/admin', label: 'Panel Admina' })
+  }
 
   function handleLogout() {
     logout()
@@ -18,13 +22,13 @@ function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link to="/" className="navbar-brand">
+      <Link to="/dashboard" className="navbar-brand">
         <span className="brand-icon">📊</span>
         <span className="brand-name">RynekMieszkań</span>
       </Link>
 
       <ul className="navbar-links">
-        {NAV_LINKS.map(({ to, label }) => (
+        {links.map(({ to, label }) => (
           <li key={to}>
             <Link
               to={to}
@@ -64,6 +68,15 @@ function Navbar() {
 }
 
 function Footer() {
+  const { session } = useAuth()
+  const links = [
+    { to: '/dashboard', label: 'Dashboard' }
+  ]
+
+  if (session?.user?.role === 'ADMIN') {
+    links.push({ to: '/admin', label: 'Panel Admina' })
+  }
+
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -73,7 +86,7 @@ function Footer() {
         </div>
         <p className="footer-copy">© 2026 Projekt — Integracja Systemów</p>
         <ul className="footer-links">
-          {NAV_LINKS.map(({ to, label }) => (
+          {links.map(({ to, label }) => (
             <li key={to}>
               <Link to={to}>{label}</Link>
             </li>
