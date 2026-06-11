@@ -234,11 +234,6 @@ function Dashboard() {
         if (!isNaN(y)) yearsSet.add(y)
       }
     })
-<<<<<<< HEAD
-
-=======
-    
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
     const arr = Array.from(yearsSet).sort()
     return arr.length > 0 ? arr : [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
   }, [prices, rates])
@@ -258,7 +253,6 @@ function Dashboard() {
 
     // Określamy dostępny typ ceny (preferując 'transakcyjna', inaczej bierzemy pierwszy napotkany, np. 'ofertowa')
     const availablePriceTypes = Array.from(new Set(prices.map(p => p.priceType?.toLowerCase()))).filter(Boolean)
-<<<<<<< HEAD
     const activePriceType = availablePriceTypes.includes('transakcyjna')
       ? 'transakcyjna'
       : (availablePriceTypes[0] || '')
@@ -266,15 +260,6 @@ function Dashboard() {
     // Filtrujemy ceny tylko dla wybranego miasta i ustalonego typu ceny
     const cityPrices = prices.filter(p =>
       p.city.toLowerCase() === region.toLowerCase() &&
-=======
-    const activePriceType = availablePriceTypes.includes('transakcyjna') 
-      ? 'transakcyjna' 
-      : (availablePriceTypes[0] || '')
-
-    // Filtrujemy ceny tylko dla wybranego miasta i ustalonego typu ceny
-    const cityPrices = prices.filter(p => 
-      p.city.toLowerCase() === region.toLowerCase() && 
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
       p.priceType?.toLowerCase() === activePriceType
     )
     // Filtrujemy tylko stopę referencyjną 'ref'

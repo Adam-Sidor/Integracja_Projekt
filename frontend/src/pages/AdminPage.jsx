@@ -4,15 +4,51 @@ import './AdminPage.css'
 
 const API = 'http://localhost:8080'
 
+const SectionNotificationAlert = ({ notification, onClose }) => {
+  if (!notification) return null
+  return (
+    <div style={{
+      padding: '12px 16px',
+      margin: '10px 0 15px 0',
+      background: notification.type === 'success' ? 'rgba(24, 180, 105, 0.15)' : 'rgba(255, 101, 132, 0.15)',
+      border: `1px solid ${notification.type === 'success' ? 'rgba(24, 180, 105, 0.4)' : 'rgba(255, 101, 132, 0.4)'}`,
+      borderRadius: 'var(--radius-md)',
+      color: notification.type === 'success' ? '#52fa9a' : '#ff8fa5',
+      fontSize: '0.9rem',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    }}>
+      <span>{notification.type === 'success' ? '✅' : '⚠️'} {notification.text}</span>
+      <button 
+        onClick={onClose}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: 'inherit',
+          fontSize: '1.2rem',
+          cursor: 'pointer',
+          padding: '0 4px',
+          opacity: 0.7
+        }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const { session } = useAuth()
   const [stats, setStats] = useState(null)
-<<<<<<< HEAD
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [loadingAction, setLoadingAction] = useState(null)
   const [notification, setNotification] = useState(null)
+  const [yamlNotification, setYamlNotification] = useState(null)
+  const [syncNotification, setSyncNotification] = useState(null)
+  const [exchangeNotification, setExchangeNotification] = useState(null)
 
   // File inputs state
   const [yamlFile, setYamlFile] = useState(null)
@@ -20,10 +56,29 @@ export default function AdminPage() {
   const [pricesXmlFile, setPricesXmlFile] = useState(null)
   const [dbJsonFile, setDbJsonFile] = useState(null)
 
-  function showNotification(text, type = 'success') {
-    setNotification({ text, type })
+  // SOAP Test state
+  const [soapRateId, setSoapRateId] = useState('')
+  const [soapLoading, setSoapLoading] = useState(false)
+  const [soapResults, setSoapResults] = useState(null)
+  const [soapError, setSoapError] = useState('')
+  const [soapRequestXml, setSoapRequestXml] = useState('')
+  const [soapResponseXml, setSoapResponseXml] = useState('')
+
+  function showNotification(text, type = 'success', section = 'global') {
+    const setFn = 
+      section === 'yaml' ? setYamlNotification :
+      section === 'sync' ? setSyncNotification :
+      section === 'exchange' ? setExchangeNotification :
+      setNotification;
+
+    if (!text) {
+      setFn(null)
+      return
+    }
+
+    setFn({ text, type })
     setTimeout(() => {
-      setNotification(null)
+      setFn(null)
     }, 8000)
   }
 
@@ -66,24 +121,6 @@ export default function AdminPage() {
       try {
         setError('')
         await Promise.all([fetchStats(), fetchConfig()])
-=======
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch(`${API}/api/admin/stats`, {
-          headers: {
-            'Authorization': `Bearer ${session?.token}`
-          }
-        })
-        if (!res.ok) {
-          throw new Error('Nie udało się pobrać statystyk administratora.')
-        }
-        const data = await res.json()
-        setStats(data)
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
       } catch (err) {
         setError(err.message)
       } finally {
@@ -92,16 +129,15 @@ export default function AdminPage() {
     }
 
     if (session?.token) {
-<<<<<<< HEAD
       loadData()
     }
   }, [session])
 
   // General POST / DELETE actions
-  async function handleAction(url, method = 'POST', successMsg = 'Akcja wykonana pomyślnie', confirmText = null) {
+  async function handleAction(url, method = 'POST', successMsg = 'Akcja wykonana pomyślnie', confirmText = null, section = 'sync') {
     if (confirmText && !window.confirm(confirmText)) return
-
-    setNotification(null)
+ 
+    showNotification(null, null, section)
     setLoadingAction(url)
     try {
       const res = await fetch(url, {
@@ -114,25 +150,25 @@ export default function AdminPage() {
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Wystąpił błąd podczas przetwarzania żądania.')
       }
-
+ 
       let extra = ''
       if (data.saved !== undefined) extra = ` (Zapisano: ${data.saved})`
       else if (data.deleted !== undefined) extra = ` (Usunięto: ${data.deleted})`
       else if (data.savedRates !== undefined) extra = ` (Stopy: ${data.savedRates}, Ceny: ${data.savedPrices})`
       else if (data.deletedPrices !== undefined) extra = ` (Ceny: ${data.deletedPrices}, Stopy: ${data.deletedRates})`
-
-      showNotification(`${successMsg}${extra}`, 'success')
+ 
+      showNotification(`${successMsg}${extra}`, 'success', section)
       await fetchStats()
     } catch (err) {
-      showNotification(err.message, 'error')
+      showNotification(err.message, 'error', section)
     } finally {
       setLoadingAction(null)
     }
   }
 
   // Handle files download
-  async function handleDownload(url, defaultFilename) {
-    setNotification(null)
+  async function handleDownload(url, defaultFilename, section = 'exchange') {
+    showNotification(null, null, section)
     setLoadingAction(url)
     try {
       const res = await fetch(url, {
@@ -152,21 +188,21 @@ export default function AdminPage() {
       link.click()
       link.remove()
       window.URL.revokeObjectURL(downloadUrl)
-      showNotification(`Pomyślnie pobrano plik: ${defaultFilename}`, 'success')
+      showNotification(`Pomyślnie pobrano plik: ${defaultFilename}`, 'success', section)
     } catch (err) {
-      showNotification(err.message, 'error')
+      showNotification(err.message, 'error', section)
     } finally {
       setLoadingAction(null)
     }
   }
 
   // Handle file uploads
-  async function handleUpload(url, file, fileParamName, successMsg, clearStateFn) {
+  async function handleUpload(url, file, fileParamName, successMsg, clearStateFn, section = 'exchange') {
     if (!file) {
-      showNotification('Wybierz plik przed zatwierdzeniem.', 'error')
+      showNotification('Wybierz plik przed zatwierdzeniem.', 'error', section)
       return
     }
-    setNotification(null)
+    showNotification(null, null, section)
     setLoadingAction(url)
     try {
       const formData = new FormData()
@@ -193,32 +229,93 @@ export default function AdminPage() {
         }
       }
 
-      showNotification(`${successMsg}${extra}`, 'success')
+      showNotification(`${successMsg}${extra}`, 'success', section)
       clearStateFn()
       await fetchStats()
       if (url.includes('config')) {
         await fetchConfig()
       }
     } catch (err) {
-      showNotification(err.message, 'error')
+      showNotification(err.message, 'error', section)
     } finally {
       setLoadingAction(null)
     }
   }
 
-=======
-      fetchStats()
-    }
-  }, [session])
+  async function testSoapEndpoint() {
+    setSoapLoading(true)
+    setSoapError('')
+    setSoapResults(null)
+    setSoapRequestXml('')
+    setSoapResponseXml('')
+    try {
+      const xmlPayload = `
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:rat="http://projekt.example.com/rates">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <rat:GetInterestRatesRequest>
+         ${soapRateId ? `<rat:rateId>${soapRateId}</rat:rateId>` : ''}
+      </rat:GetInterestRatesRequest>
+   </soapenv:Body>
+</soapenv:Envelope>
+      `.trim()
 
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
+      setSoapRequestXml(xmlPayload)
+
+      const res = await fetch(`${API}/ws`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8'
+        },
+        body: xmlPayload
+      })
+
+      if (!res.ok) {
+        throw new Error(`Błąd HTTP: ${res.status} ${res.statusText}`)
+      }
+
+      const text = await res.text()
+      setSoapResponseXml(text)
+      const parser = new DOMParser()
+      const xmlDoc = parser.parseFromString(text, 'text/xml')
+      
+      const faultElement = xmlDoc.querySelector('Fault') || xmlDoc.querySelector('faultstring')
+      if (faultElement) {
+        throw new Error(faultElement.textContent || 'Wystąpił błąd SOAP Fault')
+      }
+
+      const ratesNodes = xmlDoc.getElementsByTagNameNS('*', 'rates')
+      const parsedRates = []
+      for (let i = 0; i < ratesNodes.length; i++) {
+        const node = ratesNodes[i]
+        const getVal = (tag) => {
+          const el = node.getElementsByTagNameNS('*', tag)[0]
+          return el ? el.textContent : ''
+        }
+        parsedRates.push({
+          id: getVal('id'),
+          rateId: getVal('rateId'),
+          rateName: getVal('rateName'),
+          value: getVal('value'),
+          validFrom: getVal('validFrom'),
+          validTo: getVal('validTo')
+        })
+      }
+
+      setSoapResults(parsedRates)
+    } catch (err) {
+      setSoapError(err.message)
+    } finally {
+      setSoapLoading(false)
+    }
+  }
+
   return (
     <div className="admin-page-container">
       <div className="admin-wrapper">
         <header className="admin-header">
           <span className="admin-shield">🛡️</span>
           <h1 className="admin-title">Panel Administratora</h1>
-<<<<<<< HEAD
           <p className="admin-subtitle">Kompleksowe zarządzanie systemem, konfiguracją i danymi</p>
         </header>
 
@@ -237,15 +334,6 @@ export default function AdminPage() {
           <div className="admin-loading">
             <div className="spinner"></div>
             <p>Ładowanie panelu administratora...</p>
-=======
-          <p className="admin-subtitle">Statystyki systemu i bazy danych</p>
-        </header>
-
-        {loading && (
-          <div className="admin-loading">
-            <div className="spinner"></div>
-            <p>Ładowanie statystyk...</p>
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
           </div>
         )}
 
@@ -256,12 +344,11 @@ export default function AdminPage() {
           </div>
         )}
 
-<<<<<<< HEAD
         {!loading && !error && (
           <>
             {/* 1. Statystyki bazodanowe */}
             {stats && (
-              <section className="admin-section">
+              <section className="admin-section card-box">
                 <h2 className="section-title">📊 Statystyki bazy danych</h2>
                 <div className="admin-stats-grid">
                   <div className="admin-stat-card">
@@ -295,6 +382,7 @@ export default function AdminPage() {
             {config && (
               <section className="admin-section card-box">
                 <h2 className="section-title">⚙️ Konfiguracja systemu (YAML)</h2>
+                <SectionNotificationAlert notification={yamlNotification} onClose={() => setYamlNotification(null)} />
                 <div className="config-container">
                   <div className="config-details">
                     <div className="config-item">
@@ -316,7 +404,7 @@ export default function AdminPage() {
                       <button
                         id="btn-export-config"
                         disabled={loadingAction !== null}
-                        onClick={() => handleDownload(`${API}/api/config/export`, 'config.yaml')}
+                        onClick={() => handleDownload(`${API}/api/config/export`, 'config.yaml', 'yaml')}
                         className="btn btn-primary"
                       >
                         📥 Eksportuj config.yaml
@@ -343,7 +431,8 @@ export default function AdminPage() {
                           yamlFile,
                           'file',
                           'Ustawienia zostały zaktualizowane z pliku YAML',
-                          () => setYamlFile(null)
+                          () => setYamlFile(null),
+                          'yaml'
                         )}
                         className="btn btn-outline"
                       >
@@ -358,6 +447,7 @@ export default function AdminPage() {
             {/* 3. Pobieranie z NBP & Czyszczenie bazy */}
             <section className="admin-section card-box">
               <h2 className="section-title">⚡ Synchronizacja i czyszczenie bazy</h2>
+              <SectionNotificationAlert notification={syncNotification} onClose={() => setSyncNotification(null)} />
               <div className="operations-grid">
                 <div className="operations-card">
                   <h3>🔄 Pobieranie danych z NBP</h3>
@@ -441,6 +531,7 @@ export default function AdminPage() {
             {/* 4. Import / Eksport XML i JSON */}
             <section className="admin-section card-box">
               <h2 className="section-title">📂 Eksport i Import plików danych (XML / JSON)</h2>
+              <SectionNotificationAlert notification={exchangeNotification} onClose={() => setExchangeNotification(null)} />
               <div className="data-exchange-grid">
 
                 {/* XML Section */}
@@ -587,48 +678,150 @@ export default function AdminPage() {
             {/* 5. Usługi SOAP (WSDL) */}
             <section className="admin-section card-box soap-wsdl-section">
               <h2 className="section-title">🌐 SOAP Web Service</h2>
-              <p className="wsdl-desc">
-                Usługa SOAP udostępnia aktualne stopy procentowe. Kliknij poniższy przycisk, aby wyświetlić wygenerowany dokument WSDL w nowej karcie.
+              <p className="wsdl-desc" style={{ marginBottom: '15px' }}>
+                Usługa SOAP udostępnia aktualne stopy procentowe pobierane bezpośrednio z bazy danych.
               </p>
-              <a
-                href="http://localhost:8080/ws/rates.wsdl"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary wsdl-btn"
-                id="btn-wsdl-rates"
-              >
-                📡 Otwórz Rates WSDL Document
-              </a>
+              
+              <div className="soap-test-wrapper" style={{ marginTop: '10px', width: '100%', textAlign: 'left' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '10px', color: 'var(--clr-text)' }}>🧪 Test endpointu SOAP</h3>
+                <p className="wsdl-desc" style={{ textAlign: 'left', margin: '0 0 15px 0', fontSize: '0.9rem' }}>
+                  Wyślij zapytanie XML (Document/Literal) bezpośrednio z poziomu przeglądarki, filtrując wyniki opcjonalnym kodem stopy.
+                </p>
+                
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '15px', flexWrap: 'wrap' }}>
+                  <label htmlFor="soap-rate-select" style={{ fontWeight: '600', fontSize: '0.9rem' }}>Typ stopy (rateId):</label>
+                  <select
+                    id="soap-rate-select"
+                    value={soapRateId}
+                    onChange={(e) => setSoapRateId(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'var(--clr-text)',
+                      border: '1px solid var(--clr-border)',
+                      minWidth: '160px',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="" style={{ background: 'var(--clr-surface)' }}>Wszystkie</option>
+                    <option value="ref" style={{ background: 'var(--clr-surface)' }}>Referencyjna (ref)</option>
+                    <option value="lom" style={{ background: 'var(--clr-surface)' }}>Lombardowa (lom)</option>
+                    <option value="dep" style={{ background: 'var(--clr-surface)' }}>Depozytowa (dep)</option>
+                    <option value="red" style={{ background: 'var(--clr-surface)' }}>Redyskontowa (red)</option>
+                    <option value="dys" style={{ background: 'var(--clr-surface)' }}>Dyskontowa (dys)</option>
+                  </select>
+                  
+                  <button
+                    onClick={testSoapEndpoint}
+                    disabled={soapLoading}
+                    className="btn btn-primary"
+                    style={{ margin: 0 }}
+                  >
+                    {soapLoading ? 'Wysyłanie...' : 'Wyślij zapytanie SOAP'}
+                  </button>
+                  
+                  <a
+                    href="http://localhost:8080/ws/rates.wsdl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    id="btn-wsdl-rates"
+                    style={{ margin: 0 }}
+                  >
+                    📡 Otwórz dokument WSDL
+                  </a>
+                </div>
+
+                {/* SOAP Envelope Preview */}
+                {(soapRequestXml || soapResponseXml) && (
+                  <details style={{ marginTop: '15px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--clr-border)', borderRadius: 'var(--radius-md)', padding: '10px 15px' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', color: 'var(--clr-text-muted)', outline: 'none' }}>
+                      🔍 Podgląd koperty SOAP (XML)
+                    </summary>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px', marginTop: '12px' }}>
+                      <div>
+                        <h5 style={{ marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--clr-text-muted)' }}>SOAP Request (Żądanie)</h5>
+                        <pre style={{
+                          margin: 0,
+                          padding: '10px',
+                          background: 'rgba(0,0,0,0.4)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          overflowX: 'auto',
+                          maxHeight: '200px',
+                          color: '#fff',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                          textAlign: 'left'
+                        }}>{soapRequestXml}</pre>
+                      </div>
+                      <div>
+                        <h5 style={{ marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--clr-text-muted)' }}>SOAP Response (Odpowiedź)</h5>
+                        <pre style={{
+                          margin: 0,
+                          padding: '10px',
+                          background: 'rgba(0,0,0,0.4)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          overflowX: 'auto',
+                          maxHeight: '450px',
+                          color: '#fff',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                          textAlign: 'left'
+                        }}>{soapResponseXml}</pre>
+                      </div>
+                    </div>
+                  </details>
+                )}
+
+                {soapError && (
+                  <div style={{ padding: '12px 16px', background: 'rgba(255, 101, 132, 0.15)', border: '1px solid rgba(255, 101, 132, 0.4)', borderRadius: 'var(--radius-md)', color: '#ff8fa5', marginBottom: '15px', fontSize: '0.9rem' }}>
+                    <strong>Błąd komunikacji SOAP:</strong> {soapError}
+                  </div>
+                )}
+
+                {soapResults && (
+                  <div style={{ marginTop: '15px' }}>
+                    <h4 style={{ marginBottom: '10px', fontSize: '0.95rem', fontWeight: '600' }}>
+                      Wynik zapytania SOAP (znaleziono rekordów: {soapResults.length}):
+                    </h4>
+                    {soapResults.length === 0 ? (
+                      <p style={{ color: 'var(--clr-text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Brak danych w bazie dla podanych kryteriów.</p>
+                    ) : (
+                      <div style={{ maxHeight: '350px', overflowY: 'auto', border: '1px solid var(--clr-border)', borderRadius: 'var(--radius-md)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid var(--clr-border)' }}>
+                              <th style={{ padding: '10px 12px' }}>ID</th>
+                              <th style={{ padding: '10px 12px' }}>Kod (rateId)</th>
+                              <th style={{ padding: '10px 12px' }}>Nazwa stopy</th>
+                              <th style={{ padding: '10px 12px' }}>Wartość (%)</th>
+                              <th style={{ padding: '10px 12px' }}>Obowiązuje od</th>
+                              <th style={{ padding: '10px 12px' }}>Obowiązuje do</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {soapResults.map((r) => (
+                              <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '10px 12px', color: 'var(--clr-text-muted)' }}>{r.id}</td>
+                                <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 'bold' }}>{r.rateId}</td>
+                                <td style={{ padding: '10px 12px' }}>{r.rateName}</td>
+                                <td style={{ padding: '10px 12px', fontWeight: 'bold', color: 'var(--clr-primary)' }}>{r.value}%</td>
+                                <td style={{ padding: '10px 12px' }}>{r.validFrom}</td>
+                                <td style={{ padding: '10px 12px' }}>{r.validTo || '-'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </section>
           </>
-=======
-        {stats && (
-          <div className="admin-stats-grid">
-            <div className="admin-stat-card">
-              <span className="stat-card-icon">🏠</span>
-              <div className="stat-card-content">
-                <span className="stat-card-label">Rekordy cen mieszkań</span>
-                <span className="stat-card-value">{stats.prices.toLocaleString('pl-PL')}</span>
-              </div>
-            </div>
-
-            <div className="admin-stat-card">
-              <span className="stat-card-icon">📈</span>
-              <div className="stat-card-content">
-                <span className="stat-card-label">Rekordy stóp NBP</span>
-                <span className="stat-card-value">{stats.rates.toLocaleString('pl-PL')}</span>
-              </div>
-            </div>
-
-            <div className="admin-stat-card">
-              <span className="stat-card-icon">👤</span>
-              <div className="stat-card-content">
-                <span className="stat-card-label">Użytkownicy w systemie</span>
-                <span className="stat-card-value">{stats.users.toLocaleString('pl-PL')}</span>
-              </div>
-            </div>
-          </div>
->>>>>>> 7fed03088020042c1ee44000d189c6dc08ca8ce2
         )}
       </div>
     </div>

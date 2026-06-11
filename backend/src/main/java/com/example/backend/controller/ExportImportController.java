@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/export")
+@PreAuthorize("hasRole('ADMIN')")
 public class ExportImportController {
 
     private final ApartmentPriceRepository priceRepo;
@@ -98,7 +99,6 @@ public class ExportImportController {
     // ── IMPORT XML ───────────────────────────────────────────────────────────
 
     @PostMapping("/xml/rates/import")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> importRatesXml(@RequestParam("file") MultipartFile file) throws Exception {
         byte[] bytes = file.getBytes();
         if (bytes.length == 0) return ResponseEntity.badRequest().body(Map.of("error", "Plik jest pusty"));
@@ -125,7 +125,6 @@ public class ExportImportController {
     }
 
     @PostMapping("/xml/prices/import")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> importPricesXml(@RequestParam("file") MultipartFile file) throws Exception {
         byte[] bytes = file.getBytes();
         if (bytes.length == 0) return ResponseEntity.badRequest().body(Map.of("error", "Plik jest pusty"));
@@ -230,7 +229,6 @@ public class ExportImportController {
     }
 
     @PostMapping("/db/import")
-    @PreAuthorize("hasRole('ADMIN')")
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public ResponseEntity<?> importDatabase(@RequestParam("file") MultipartFile file) throws Exception {
         byte[] bytes = file.getBytes();

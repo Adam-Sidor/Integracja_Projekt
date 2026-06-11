@@ -55,6 +55,7 @@ public class InterestRateEndpoint {
     @XmlRootElement(name = "GetInterestRatesRequest", namespace = NS)
     @XmlAccessorType(XmlAccessType.FIELD)
     public static class GetInterestRatesRequest {
+        @XmlElement(namespace = NS)
         private String rateId;
         public String getRateId() { return rateId; }
         public void setRateId(String rateId) { this.rateId = rateId; }
@@ -63,7 +64,7 @@ public class InterestRateEndpoint {
     @XmlRootElement(name = "GetInterestRatesResponse", namespace = NS)
     @XmlAccessorType(XmlAccessType.FIELD)
     public static class GetInterestRatesResponse {
-        @XmlElement(name = "rates")
+        @XmlElement(name = "rates", namespace = NS)
         private List<RateEntry> rates = new java.util.ArrayList<>();
         public List<RateEntry> getRates() { return rates; }
     }
