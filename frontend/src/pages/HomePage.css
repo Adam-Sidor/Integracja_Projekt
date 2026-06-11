@@ -260,6 +260,14 @@
   min-height: 4px;
   transition: height .4s cubic-bezier(.4,0,.2,1);
 }
+.bar-value-label {
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--clr-primary-h);
+  margin-bottom: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
 .bar-label {
   font-size: 8.5px;
   color: var(--clr-text-muted);

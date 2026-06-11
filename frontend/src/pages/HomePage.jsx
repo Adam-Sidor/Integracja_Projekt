@@ -22,6 +22,7 @@ function BarChart({ data, labels, color, unit }) {
     <div className="bar-chart">
       {data.map((val, i) => (
         <div className="bar-col" key={i}>
+          <span className="bar-value-label">{val > 0 ? `${val.toFixed(2)}%` : '0%'}</span>
           <div
             className="bar-fill"
             style={{ height: `${(val / max) * 100}%`, background: color }}
@@ -39,6 +40,8 @@ function LineChart({ series, labels, colors }) {
   const innerW = W - PAD.l - PAD.r
   const innerH = H - PAD.t - PAD.b
 
+  const [hoveredPoint, setHoveredPoint] = useState(null)
+
   const allVals = series.flatMap(s => s.data)
   const minV = Math.min(...allVals, 0)
   const maxV = Math.max(...allVals, 1)
@@ -54,37 +57,94 @@ function LineChart({ series, labels, colors }) {
   const tickVals = Array.from({ length: ticks + 1 }, (_, i) => minV + (range / ticks) * i)
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="line-chart-svg" role="img" aria-label="Wykres liniowy cen mieszkań">
-      {tickVals.map((tv, i) => (
-        <g key={i}>
-          <line
-            x1={PAD.l} y1={yScale(tv).toFixed(1)}
-            x2={W - PAD.r} y2={yScale(tv).toFixed(1)}
-            stroke="rgba(255,255,255,.07)" strokeWidth="1"
-          />
-          <text x={PAD.l - 6} y={yScale(tv) + 4} fill="rgba(255,255,255,.35)" fontSize="9" textAnchor="end">
-            {Math.round(tv / 1000)}k
-          </text>
-        </g>
-      ))}
+    <div className="line-chart-container" style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="line-chart-svg" role="img" aria-label="Wykres liniowy cen mieszkań">
+        {tickVals.map((tv, i) => (
+          <g key={i}>
+            <line
+              x1={PAD.l} y1={yScale(tv).toFixed(1)}
+              x2={W - PAD.r} y2={yScale(tv).toFixed(1)}
+              stroke="rgba(255,255,255,.07)" strokeWidth="1"
+            />
+            <text x={PAD.l - 6} y={yScale(tv) + 4} fill="rgba(255,255,255,.35)" fontSize="9" textAnchor="end">
+              {Math.round(tv / 1000)}k
+            </text>
+          </g>
+        ))}
 
-      {series.map((s, si) => (
-        <g key={si}>
-          <path d={toPath(s.data)} fill="none" stroke={colors[si]} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-          {s.data.map((v, i) => (
-            <circle key={i} cx={xScale(i)} cy={yScale(v)} r="3.5" fill={colors[si]} stroke="#0f1117" strokeWidth="1.5">
-              <title>{s.label} ({labels[i]}): {formatPrice(v)}</title>
-            </circle>
-          ))}
-        </g>
-      ))}
+        {series.map((s, si) => (
+          <g key={si}>
+            <path d={toPath(s.data)} fill="none" stroke={colors[si]} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            {s.data.map((v, i) => (
+              <circle
+                key={i}
+                cx={xScale(i)}
+                cy={yScale(v)}
+                r="4.5"
+                fill={colors[si]}
+                stroke="#0f1117"
+                strokeWidth="1.5"
+                style={{ cursor: 'pointer', transition: 'r 0.15s' }}
+                onMouseEnter={() => {
+                  setHoveredPoint({
+                    x: (xScale(i) / W) * 100,
+                    y: (yScale(v) / H) * 100,
+                    seriesLabel: s.label,
+                    timeLabel: labels[i],
+                    value: v,
+                    color: colors[si]
+                  })
+                }}
+                onMouseLeave={() => setHoveredPoint(null)}
+              />
+            ))}
+          </g>
+        ))}
 
-      {labels.map((l, i) => (
-        <text key={i} x={xScale(i)} y={H - 6} fill="rgba(255,255,255,.35)" fontSize="9" textAnchor="middle">
-          {l}
-        </text>
-      ))}
-    </svg>
+        {labels.map((l, i) => (
+          // Co 4 etykieta wyświetlana, żeby nie zaciemniać wykresu przy danych kwartalnych
+          (i % 4 === 0 || i === labels.length - 1) && (
+            <text key={i} x={xScale(i)} y={H - 6} fill="rgba(255,255,255,.35)" fontSize="9" textAnchor="middle">
+              {l}
+            </text>
+          )
+        ))}
+      </svg>
+
+      {/* Modern, dynamic tooltip */}
+      {hoveredPoint && (
+        <div
+          className="chart-tooltip"
+          style={{
+            position: 'absolute',
+            left: `${hoveredPoint.x}%`,
+            top: `${hoveredPoint.y - 12}%`, // lekko nad punktem
+            transform: 'translate(-50%, -100%)',
+            background: 'rgba(15, 17, 23, 0.95)',
+            border: `1px solid ${hoveredPoint.color}`,
+            boxShadow: `0 4px 20px ${hoveredPoint.color}22`,
+            borderRadius: '8px',
+            padding: '8px 12px',
+            pointerEvents: 'none',
+            zIndex: 10,
+            transition: 'opacity 0.15s ease',
+            fontSize: '11px',
+            color: '#e8eaf6',
+            fontFamily: 'Inter, sans-serif'
+          }}
+        >
+          <div style={{ fontWeight: 700, color: hoveredPoint.color, marginBottom: '2px' }}>
+            {hoveredPoint.seriesLabel}
+          </div>
+          <div style={{ opacity: 0.6, fontSize: '9.5px', marginBottom: '2px' }}>
+            Kwartał: {hoveredPoint.timeLabel}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: '12px' }}>
+            {formatPrice(hoveredPoint.value)}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -136,7 +196,35 @@ function Dashboard() {
     return set.size > 0 ? Array.from(set).sort() : ['Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Łódź']
   }, [prices])
 
-  // Wyciągamy unikalne lata dostępne w systemie
+  // Wyciągamy unikalne punkty osi czasu (rok + kwartał) uporządkowane chronologicznie (dla cen mieszkań)
+  const timePoints = useMemo(() => {
+    const points = []
+    prices.forEach(p => {
+      if (p.year && p.quarter) {
+        points.push({ year: p.year, quarter: p.quarter, label: `${p.year} Q${p.quarter}` })
+      }
+    })
+
+    // Usuwanie duplikatów i sortowanie
+    const unique = []
+    const seen = new Set()
+    points.forEach(p => {
+      const key = `${p.year}-${p.quarter}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        unique.push(p)
+      }
+    })
+
+    unique.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year
+      return a.quarter - b.quarter
+    })
+
+    return unique
+  }, [prices])
+
+  // Wyciągamy unikalne lata dostępne w systemie (dla stóp procentowych)
   const years = useMemo(() => {
     const yearsSet = new Set()
     prices.forEach(p => yearsSet.add(p.year))
@@ -146,9 +234,8 @@ function Dashboard() {
         if (!isNaN(y)) yearsSet.add(y)
       }
     })
-
+    
     const arr = Array.from(yearsSet).sort()
-    // Domyślny fallback na wypadek braku danych
     return arr.length > 0 ? arr : [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
   }, [prices, rates])
 
@@ -159,7 +246,7 @@ function Dashboard() {
     }
   }, [regions, region])
 
-  // Wyliczanie danych wykresów i KPI dla wybranego regionu i lat
+  // Wyliczanie danych wykresów i KPI dla wybranego regionu, kwartałów i lat
   const processedData = useMemo(() => {
     const primaryData = []
     const secondaryData = []
@@ -179,23 +266,21 @@ function Dashboard() {
     // Filtrujemy tylko stopę referencyjną 'ref'
     const refRates = rates.filter(r => r.rateId === 'ref')
 
+    // 1. Wyliczamy kwartalne ceny mieszkań
+    timePoints.forEach(point => {
+      const { year, quarter } = point
+
+      const primMatch = cityPrices.find(p => p.year === year && p.quarter === quarter && p.marketType.toLowerCase() === 'pierwotny')
+      const primVal = primMatch ? primMatch.pricePerSqm : (primaryData[primaryData.length - 1] || 0)
+      primaryData.push(primVal)
+
+      const secMatch = cityPrices.find(p => p.year === year && p.quarter === quarter && p.marketType.toLowerCase() === 'wtórny')
+      const secVal = secMatch ? secMatch.pricePerSqm : (secondaryData[secondaryData.length - 1] || 0)
+      secondaryData.push(secVal)
+    })
+
+    // 2. Wyliczamy roczną stopę procentową na koniec każdego roku
     years.forEach(year => {
-      // 1. Rynek Pierwotny (pierwotny) - wyliczamy średnią cenę w roku
-      const primInYear = cityPrices.filter(p => p.year === year && p.marketType.toLowerCase() === 'pierwotny')
-      const primAvg = primInYear.length > 0
-        ? primInYear.reduce((acc, curr) => acc + curr.pricePerSqm, 0) / primInYear.length
-        : (primaryData[primaryData.length - 1] || 0) // fallback do poprzedniego roku
-      primaryData.push(primAvg)
-
-      // 2. Rynek Wtórny (wtórny) - wyliczamy średnią cenę w roku
-      const secInYear = cityPrices.filter(p => p.year === year && p.marketType.toLowerCase() === 'wtórny')
-      const secAvg = secInYear.length > 0
-        ? secInYear.reduce((acc, curr) => acc + curr.pricePerSqm, 0) / secInYear.length
-        : (secondaryData[secondaryData.length - 1] || 0) // fallback do poprzedniego roku
-      secondaryData.push(secAvg)
-
-      // 3. Stopy procentowe - wartość na koniec danego roku (lub średnia z roku)
-      // Bierzemy stopę referencyjną aktywną w dniu 31 grudnia danego roku
       const endOfYearDate = new Date(`${year}-12-31`)
       const activeRate = refRates
         .filter(r => {
@@ -210,7 +295,7 @@ function Dashboard() {
     })
 
     return { primaryData, secondaryData, interestRates }
-  }, [prices, rates, region, years])
+  }, [prices, rates, region, timePoints, years])
 
   const { primaryData, secondaryData, interestRates } = processedData
 
@@ -232,7 +317,8 @@ function Dashboard() {
     )
   }
 
-  const lastIdx = years.length - 1
+  const lastIdx = timePoints.length - 1
+  const lastYearIdx = years.length - 1
   const activePrimary = market !== 'secondary'
   const activeSecondary = market !== 'primary'
 
@@ -244,9 +330,11 @@ function Dashboard() {
 
   const latestPrimary = primaryData[lastIdx] || 0
   const latestSecondary = secondaryData[lastIdx] || 0
-  const latestRate = interestRates[lastIdx] || 0
+  const latestRate = interestRates[lastYearIdx] || 0
   const peakRate = interestRates.length > 0 ? Math.max(...interestRates) : 0
   const peakYear = years[interestRates.indexOf(peakRate)] || '-'
+
+  const timeLabels = timePoints.map(p => p.label)
 
   return (
     <section className="dashboard" id="dashboard">
@@ -289,22 +377,22 @@ function Dashboard() {
         {/* KPI cards */}
         <div className="kpi-grid">
           <div className="kpi-card">
-            <span className="kpi-label">Cena (pierwotny) {years[lastIdx]}</span>
+            <span className="kpi-label">Cena (pierwotny) {timePoints[lastIdx]?.label}</span>
             <span className="kpi-value">{formatPrice(latestPrimary)}</span>
-            <span className="kpi-change positive">{pct(latestPrimary, primaryData[0])} od {years[0]}</span>
+            <span className="kpi-change positive">{pct(latestPrimary, primaryData[0])} od {timePoints[0]?.label}</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Cena (wtórny) {years[lastIdx]}</span>
+            <span className="kpi-label">Cena (wtórny) {timePoints[lastIdx]?.label}</span>
             <span className="kpi-value">{formatPrice(latestSecondary)}</span>
-            <span className="kpi-change positive">{pct(latestSecondary, secondaryData[0])} od {years[0]}</span>
+            <span className="kpi-change positive">{pct(latestSecondary, secondaryData[0])} od {timePoints[0]?.label}</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Stopa ref. NBP ({years[lastIdx]})</span>
+            <span className="kpi-label">Stopa ref. NBP ({years[lastYearIdx]})</span>
             <span className="kpi-value">{latestRate}%</span>
             <span className="kpi-change neutral">Szczyt: {peakRate}% ({peakYear})</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Różnica pier./wt. {years[lastIdx]}</span>
+            <span className="kpi-label">Różnica pier./wt. {timePoints[lastIdx]?.label}</span>
             <span className="kpi-value">{formatPrice(Math.abs(latestPrimary - latestSecondary))}</span>
             <span className="kpi-change neutral">
               {latestPrimary > latestSecondary
@@ -324,7 +412,7 @@ function Dashboard() {
                 {activeSecondary && <span className="legend-dot" style={{ '--dot-clr': '#ff6584' }}>Wtórny</span>}
               </div>
             </div>
-            <LineChart series={series} labels={years} colors={colors} />
+            <LineChart series={series} labels={timeLabels} colors={colors} />
           </div>
 
           <div className="chart-card">
