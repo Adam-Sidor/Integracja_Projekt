@@ -3,14 +3,12 @@ import { useAuth } from '../context/AuthContext'
 import './Layout.css'
 
 const NAV_LINKS = [
-  { to: '/',            label: 'Dashboard' },
-  { to: '/regiony',     label: 'Regiony' },
-  { to: '/o-projekcie', label: 'O projekcie' },
+  { to: '/', label: 'Dashboard' },
 ]
 
 function Navbar() {
   const { pathname } = useLocation()
-  const navigate     = useNavigate()
+  const navigate = useNavigate()
   const { session, logout } = useAuth()
 
   function handleLogout() {

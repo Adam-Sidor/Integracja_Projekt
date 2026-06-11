@@ -1,35 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useAuth } from '../context/AuthContext'
 import './HomePage.css'
 
-/* ─── Static demo data ────────────────────────────────────────────── */
-const YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
-
-const REGIONS = ['Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Łódź']
-
-const INTEREST_RATES = [1.5, 1.5, 1.5, 1.5, 1.5, 0.1, 0.1, 6.75, 5.75, 5.75]
-
-const PRICES = {
-  Warszawa:  { primary: [7200,7500,8000,8800,9700,10500,11800,13500,14200,15100], secondary: [6800,7000,7400,8100,9000,9800,11000,12500,13200,14000] },
-  Kraków:    { primary: [5800,6000,6400,7000,7900,8500,9800,11500,12400,13200], secondary: [5400,5600,6000,6600,7400,8000,9200,10800,11600,12400] },
-  Wrocław:   { primary: [5500,5700,6100,6700,7500,8100,9400,11000,11900,12700], secondary: [5100,5300,5700,6300,7000,7600,8800,10200,11000,11800] },
-  Poznań:    { primary: [5000,5200,5500,6100,6800,7400,8500,9900,10700,11400], secondary: [4700,4900,5200,5700,6400,7000,8000,9300,10000,10700] },
-  Gdańsk:    { primary: [5600,5800,6300,7000,7900,8600,9900,11600,12500,13300], secondary: [5200,5400,5900,6500,7300,8000,9200,10800,11600,12400] },
-  Łódź:     { primary: [3800,3900,4100,4500,5000,5400,6300,7400,8000,8600],  secondary: [3500,3600,3800,4200,4700,5100,5900,6900,7500,8100]  },
-}
+const API = 'http://localhost:8080'
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
 function pct(val, ref) {
+  if (!ref) return '0.0%'
   const d = ((val - ref) / ref) * 100
   return (d >= 0 ? '+' : '') + d.toFixed(1) + '%'
 }
 
 function formatPrice(n) {
-  return n.toLocaleString('pl-PL') + ' zł/m²'
+  return Math.round(n).toLocaleString('pl-PL') + ' zł/m²'
 }
 
 /* ─── Mini charts ────────────────────────────────────────────────── */
 function BarChart({ data, labels, color, unit }) {
-  const max = Math.max(...data)
+  const max = Math.max(...data, 1)
   return (
     <div className="bar-chart">
       {data.map((val, i) => (
@@ -52,11 +40,11 @@ function LineChart({ series, labels, colors }) {
   const innerH = H - PAD.t - PAD.b
 
   const allVals = series.flatMap(s => s.data)
-  const minV = Math.min(...allVals)
-  const maxV = Math.max(...allVals)
+  const minV = Math.min(...allVals, 0)
+  const maxV = Math.max(...allVals, 1)
   const range = maxV - minV || 1
 
-  const xScale = i => PAD.l + (i / (labels.length - 1)) * innerW
+  const xScale = i => PAD.l + (i / (labels.length - 1 || 1)) * innerW
   const yScale = v => PAD.t + innerH - ((v - minV) / range) * innerH
 
   const toPath = data =>
@@ -85,7 +73,7 @@ function LineChart({ series, labels, colors }) {
           <path d={toPath(s.data)} fill="none" stroke={colors[si]} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
           {s.data.map((v, i) => (
             <circle key={i} cx={xScale(i)} cy={yScale(v)} r="3.5" fill={colors[si]} stroke="#0f1117" strokeWidth="1.5">
-              <title>{labels[i]}: {formatPrice(v)}</title>
+              <title>{s.label} ({labels[i]}): {formatPrice(v)}</title>
             </circle>
           ))}
         </g>
@@ -101,52 +89,164 @@ function LineChart({ series, labels, colors }) {
 }
 
 /* ─── Sections ───────────────────────────────────────────────────── */
-function Hero() {
-  return (
-    <section className="hero" id="hero">
-      <div className="hero-content">
-        <p className="hero-eyebrow">Analiza rynku nieruchomości · 2015–2024</p>
-        <h1 className="hero-title">
-          Stopy procentowe<br />
-          <span className="hero-highlight">a ceny mieszkań</span>
-        </h1>
-        <p className="hero-subtitle">
-          Interaktywne zestawienie danych o wysokości stóp procentowych NBP
-          i cenach transakcyjnych mieszkań w Polsce w ostatnim dziesięcioleciu.
-          Analizuj trendy według regionu i typu rynku.
-        </p>
-        <div className="hero-badges">
-          <span className="badge">📅 10 lat danych</span>
-          <span className="badge">🗺️ 6 regionów</span>
-          <span className="badge">🏗️ Rynek pierwotny &amp; wtórny</span>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function Dashboard() {
+  const { session } = useAuth()
+  const [prices, setPrices] = useState([])
+  const [rates, setRates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
   const [region, setRegion] = useState('Warszawa')
   const [market, setMarket] = useState('both')
 
-  const primaryData   = PRICES[region].primary
-  const secondaryData = PRICES[region].secondary
-  const lastIdx = YEARS.length - 1
+  // Pobieranie danych przy wejściu na stronę
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const headers = { 'Authorization': `Bearer ${session?.token}` }
+        const [pricesRes, ratesRes] = await Promise.all([
+          fetch(`${API}/api/prices`, { headers }),
+          fetch(`${API}/api/rates`, { headers })
+        ])
 
-  const activePrimary   = market !== 'secondary'
+        if (!pricesRes.ok || !ratesRes.ok) {
+          throw new Error('Nie udało się pobrać danych z serwera.')
+        }
+
+        const pricesData = await pricesRes.json()
+        const ratesData = await ratesRes.json()
+
+        setPrices(pricesData)
+        setRates(ratesData)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (session?.token) {
+      fetchData()
+    }
+  }, [session])
+
+  // Wyciągamy unikalne dostępne regiony/miasta z danych cenowych
+  const regions = useMemo(() => {
+    const set = new Set(prices.map(p => p.city))
+    return set.size > 0 ? Array.from(set).sort() : ['Warszawa', 'Kraków', 'Wrocław', 'Poznań', 'Gdańsk', 'Łódź']
+  }, [prices])
+
+  // Wyciągamy unikalne lata dostępne w systemie
+  const years = useMemo(() => {
+    const yearsSet = new Set()
+    prices.forEach(p => yearsSet.add(p.year))
+    rates.forEach(r => {
+      if (r.validFrom) {
+        const y = new Date(r.validFrom).getFullYear()
+        if (!isNaN(y)) yearsSet.add(y)
+      }
+    })
+
+    const arr = Array.from(yearsSet).sort()
+    // Domyślny fallback na wypadek braku danych
+    return arr.length > 0 ? arr : [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024]
+  }, [prices, rates])
+
+  // Ustawienie regionu na pierwszy dostępny po załadowaniu
+  useEffect(() => {
+    if (regions.length > 0 && !regions.includes(region)) {
+      setRegion(regions[0])
+    }
+  }, [regions, region])
+
+  // Wyliczanie danych wykresów i KPI dla wybranego regionu i lat
+  const processedData = useMemo(() => {
+    const primaryData = []
+    const secondaryData = []
+    const interestRates = []
+
+    // Określamy dostępny typ ceny (preferując 'transakcyjna', inaczej bierzemy pierwszy napotkany, np. 'ofertowa')
+    const availablePriceTypes = Array.from(new Set(prices.map(p => p.priceType?.toLowerCase()))).filter(Boolean)
+    const activePriceType = availablePriceTypes.includes('transakcyjna') 
+      ? 'transakcyjna' 
+      : (availablePriceTypes[0] || '')
+
+    // Filtrujemy ceny tylko dla wybranego miasta i ustalonego typu ceny
+    const cityPrices = prices.filter(p => 
+      p.city.toLowerCase() === region.toLowerCase() && 
+      p.priceType?.toLowerCase() === activePriceType
+    )
+    // Filtrujemy tylko stopę referencyjną 'ref'
+    const refRates = rates.filter(r => r.rateId === 'ref')
+
+    years.forEach(year => {
+      // 1. Rynek Pierwotny (pierwotny) - wyliczamy średnią cenę w roku
+      const primInYear = cityPrices.filter(p => p.year === year && p.marketType.toLowerCase() === 'pierwotny')
+      const primAvg = primInYear.length > 0
+        ? primInYear.reduce((acc, curr) => acc + curr.pricePerSqm, 0) / primInYear.length
+        : (primaryData[primaryData.length - 1] || 0) // fallback do poprzedniego roku
+      primaryData.push(primAvg)
+
+      // 2. Rynek Wtórny (wtórny) - wyliczamy średnią cenę w roku
+      const secInYear = cityPrices.filter(p => p.year === year && p.marketType.toLowerCase() === 'wtórny')
+      const secAvg = secInYear.length > 0
+        ? secInYear.reduce((acc, curr) => acc + curr.pricePerSqm, 0) / secInYear.length
+        : (secondaryData[secondaryData.length - 1] || 0) // fallback do poprzedniego roku
+      secondaryData.push(secAvg)
+
+      // 3. Stopy procentowe - wartość na koniec danego roku (lub średnia z roku)
+      // Bierzemy stopę referencyjną aktywną w dniu 31 grudnia danego roku
+      const endOfYearDate = new Date(`${year}-12-31`)
+      const activeRate = refRates
+        .filter(r => {
+          const from = new Date(r.validFrom)
+          const to = r.validTo ? new Date(r.validTo) : null
+          return from <= endOfYearDate && (!to || to >= endOfYearDate)
+        })
+        .sort((a, b) => new Date(b.validFrom) - new Date(a.validFrom))[0]
+
+      const rateVal = activeRate ? activeRate.value : (interestRates[interestRates.length - 1] || 0)
+      interestRates.push(rateVal)
+    })
+
+    return { primaryData, secondaryData, interestRates }
+  }, [prices, rates, region, years])
+
+  const { primaryData, secondaryData, interestRates } = processedData
+
+  if (loading) {
+    return (
+      <div className="dashboard-loading">
+        <div className="spinner"></div>
+        <p>Ładowanie danych analitycznych z backendu...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-error">
+        <p className="error-msg">⚠️ {error}</p>
+        <button onClick={() => window.location.reload()} className="btn btn-primary"> Spróbuj ponownie</button>
+      </div>
+    )
+  }
+
+  const lastIdx = years.length - 1
+  const activePrimary = market !== 'secondary'
   const activeSecondary = market !== 'primary'
 
   const series = [
-    ...(activePrimary   ? [{ data: primaryData,   label: 'Rynek pierwotny' }] : []),
-    ...(activeSecondary ? [{ data: secondaryData, label: 'Rynek wtórny' }]    : []),
+    ...(activePrimary ? [{ data: primaryData, label: 'Rynek pierwotny' }] : []),
+    ...(activeSecondary ? [{ data: secondaryData, label: 'Rynek wtórny' }] : []),
   ]
   const colors = ['#6c63ff', '#ff6584']
 
-  const latestPrimary   = primaryData[lastIdx]
-  const latestSecondary = secondaryData[lastIdx]
-  const latestRate      = INTEREST_RATES[lastIdx]
-  const peakRate        = Math.max(...INTEREST_RATES)
-  const peakYear        = YEARS[INTEREST_RATES.indexOf(peakRate)]
+  const latestPrimary = primaryData[lastIdx] || 0
+  const latestSecondary = secondaryData[lastIdx] || 0
+  const latestRate = interestRates[lastIdx] || 0
+  const peakRate = interestRates.length > 0 ? Math.max(...interestRates) : 0
+  const peakYear = years[interestRates.indexOf(peakRate)] || '-'
 
   return (
     <section className="dashboard" id="dashboard">
@@ -159,7 +259,7 @@ function Dashboard() {
           <div className="control-group">
             <label className="control-label">Region</label>
             <div className="btn-group">
-              {REGIONS.map(r => (
+              {regions.map(r => (
                 <button
                   key={r}
                   className={`btn btn-filter${region === r ? ' active' : ''}`}
@@ -189,24 +289,28 @@ function Dashboard() {
         {/* KPI cards */}
         <div className="kpi-grid">
           <div className="kpi-card">
-            <span className="kpi-label">Cena (pierwotny) 2024</span>
+            <span className="kpi-label">Cena (pierwotny) {years[lastIdx]}</span>
             <span className="kpi-value">{formatPrice(latestPrimary)}</span>
-            <span className="kpi-change positive">{pct(latestPrimary, primaryData[0])} od 2015</span>
+            <span className="kpi-change positive">{pct(latestPrimary, primaryData[0])} od {years[0]}</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Cena (wtórny) 2024</span>
+            <span className="kpi-label">Cena (wtórny) {years[lastIdx]}</span>
             <span className="kpi-value">{formatPrice(latestSecondary)}</span>
-            <span className="kpi-change positive">{pct(latestSecondary, secondaryData[0])} od 2015</span>
+            <span className="kpi-change positive">{pct(latestSecondary, secondaryData[0])} od {years[0]}</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Stopa ref. NBP (2024)</span>
+            <span className="kpi-label">Stopa ref. NBP ({years[lastIdx]})</span>
             <span className="kpi-value">{latestRate}%</span>
             <span className="kpi-change neutral">Szczyt: {peakRate}% ({peakYear})</span>
           </div>
           <div className="kpi-card">
-            <span className="kpi-label">Różnica pier./wt. 2024</span>
-            <span className="kpi-value">{formatPrice(latestPrimary - latestSecondary)}</span>
-            <span className="kpi-change neutral">{pct(latestPrimary, latestSecondary)} drożej pierwotny</span>
+            <span className="kpi-label">Różnica pier./wt. {years[lastIdx]}</span>
+            <span className="kpi-value">{formatPrice(Math.abs(latestPrimary - latestSecondary))}</span>
+            <span className="kpi-change neutral">
+              {latestPrimary > latestSecondary
+                ? `${pct(latestPrimary, latestSecondary)} drożej pierwotny`
+                : `${pct(latestSecondary, latestPrimary)} drożej wtórny`}
+            </span>
           </div>
         </div>
 
@@ -216,11 +320,11 @@ function Dashboard() {
             <div className="chart-header">
               <h3 className="chart-title">Ceny mieszkań – {region}</h3>
               <div className="chart-legend">
-                {activePrimary   && <span className="legend-dot" style={{ '--dot-clr': '#6c63ff' }}>Pierwotny</span>}
+                {activePrimary && <span className="legend-dot" style={{ '--dot-clr': '#6c63ff' }}>Pierwotny</span>}
                 {activeSecondary && <span className="legend-dot" style={{ '--dot-clr': '#ff6584' }}>Wtórny</span>}
               </div>
             </div>
-            <LineChart series={series} labels={YEARS} colors={colors} />
+            <LineChart series={series} labels={years} colors={colors} />
           </div>
 
           <div className="chart-card">
@@ -228,8 +332,8 @@ function Dashboard() {
               <h3 className="chart-title">Referencyjna stopa NBP (%)</h3>
             </div>
             <BarChart
-              data={INTEREST_RATES}
-              labels={YEARS}
+              data={interestRates}
+              labels={years}
               color="linear-gradient(180deg, #6c63ff 0%, #8a5cf7 100%)"
               unit="%"
             />
@@ -240,35 +344,11 @@ function Dashboard() {
   )
 }
 
-function AboutSection() {
-  return (
-    <section className="about-section" id="o-projekcie">
-      <div className="about-inner">
-        <h2 className="section-title">O projekcie</h2>
-        <p className="about-text">
-          Projekt realizowany w ramach kursu <strong>Integracja Systemów</strong>.
-          Celem jest zestawienie i wizualizacja publicznie dostępnych danych
-          o stopach procentowych NBP oraz cenach transakcyjnych mieszkań
-          w Polsce w latach 2015–2024, z podziałem na regiony
-          i typ rynku (pierwotny / wtórny).
-        </p>
-        <div className="source-tags">
-          <span className="source-tag">Źródło: NBP</span>
-          <span className="source-tag">Źródło: GUS</span>
-          <span className="source-tag">Źródło: BaRN</span>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 /* ─── Page export ────────────────────────────────────────────────── */
 export default function HomePage() {
   return (
     <>
-      <Hero />
       <Dashboard />
-      <AboutSection />
     </>
   )
 }

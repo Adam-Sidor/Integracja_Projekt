@@ -320,3 +320,39 @@
 @media (max-width: 640px) {
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Loading & Error States ────────────────────────────────── */
+.dashboard-loading,
+.dashboard-error {
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius-lg);
+  max-width: 1160px;
+  margin: 0 auto 80px;
+  text-align: center;
+  gap: 20px;
+  color: var(--clr-text-muted);
+}
+.dashboard-error .error-msg {
+  color: var(--clr-accent);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(108, 99, 255, 0.1);
+  border-left-color: var(--clr-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+

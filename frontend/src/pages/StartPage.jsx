@@ -1,13 +1,6 @@
 import { Link } from 'react-router-dom'
 import './StartPage.css'
 
-const FEATURES = [
-  { icon: '📈', title: 'Trendy cenowe', desc: 'Śledź zmiany cen mieszkań w 6 największych miastach Polski na przestrzeni 10 lat.' },
-  { icon: '📊', title: 'Analiza wykresów', desc: 'Interaktywne wykresy liniowe i słupkowe pozwalają porównywać rynki pierwotny i wtórny.' },
-  { icon: '🏦', title: 'Stopy procentowe', desc: 'Korelacja między decyzjami NBP a cenami nieruchomości na jednym dashboardzie.' },
-  { icon: '🗺️', title: 'Regiony', desc: 'Warszawa, Kraków, Wrocław, Poznań, Gdańsk i Łódź — pełne dane regionalne.' },
-]
-
 export default function StartPage() {
   return (
     <div className="start-page">
@@ -46,16 +39,6 @@ export default function StartPage() {
               Utwórz konto
             </Link>
           </div>
-        </div>
-
-        <div className="start-features">
-          {FEATURES.map(({ icon, title, desc }) => (
-            <div className="start-feature-card" key={title}>
-              <span className="feature-icon">{icon}</span>
-              <h3 className="feature-title">{title}</h3>
-              <p className="feature-desc">{desc}</p>
-            </div>
-          ))}
         </div>
       </main>
 
